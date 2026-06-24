@@ -1,0 +1,14 @@
+[
+  {"id": "shkoder", "name": "Shkodër", "lat": 42.0683, "lon": 19.5126, "region": "Veri", "has_grazing": true},
+  {"id": "lezhe", "name": "Lezhë", "lat": 41.7836, "lon": 19.6436, "region": "Veri", "has_grazing": true},
+  {"id": "kukes", "name": "Kukës", "lat": 42.0773, "lon": 20.4218, "region": "Veri", "has_grazing": true},
+  {"id": "diber", "name": "Dibër", "lat": 41.5236, "lon": 20.5097, "region": "Veri-Lindje", "has_grazing": true},
+  {"id": "durres", "name": "Durrës", "lat": 41.3233, "lon": 19.4458, "region": "Qender", "has_grazing": false},
+  {"id": "tirane", "name": "Tiranë", "lat": 41.3275, "lon": 19.8187, "region": "Qender", "has_grazing": true},
+  {"id": "elbasan", "name": "Elbasan", "lat": 41.1125, "lon": 20.0822, "region": "Qender", "has_grazing": true},
+  {"id": "fier", "name": "Fier", "lat": 40.7239, "lon": 19.5567, "region": "Jug-Perendim", "has_grazing": false},
+  {"id": "berat", "name": "Berat", "lat": 40.7058, "lon": 19.9522, "region": "Jug", "has_grazing": true},
+  {"id": "vlore", "name": "Vlorë", "lat": 40.4686, "lon": 19.4892, "region": "Jug", "has_grazing": true},
+  {"id": "gjirokaster", "name": "Gjirokastër", "lat": 40.0758, "lon": 20.1389, "region": "Jug", "has_grazing": true},
+  {"id": "korce", "name": "Korçë", "lat": 40.6186, "lon": 20.7808, "region": "Jug-Lindje", "has_grazing": true}
+]

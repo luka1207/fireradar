@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="sq">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ZjarrRadar — Monitorim Live i Rrezikut të Zjarreve</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+  :root {
+    --bg-void: #0a0e0d;
+    --bg-panel: #111614;
+    --bg-panel-raised: #161d1a;
+    --line: #243029;
+    --text-primary: #e8ede9;
+    --text-dim: #6b7d72;
+    --text-faint: #3f4d45;
+
+    --risk-low: #3a8a5c;
+    --risk-moderate: #c9a227;
+    --risk-high: #d9701f;
+    --risk-critical: #c4341f;
+
+    --font-data: 'IBM Plex Mono', 'SF Mono', Consolas, monospace;
+    --font-display: 'Archivo', system-ui, sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg-void);
+    color: var(--text-primary);
+    font-family: var(--font-display);
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* ---------- LAYOUT ---------- */
+  .app {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    grid-template-rows: 56px 1fr;
+    height: 100vh;
+  }
+
+  header {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    border-bottom: 1px solid var(--line);
+    background: var(--bg-panel);
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .brand-mark {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--risk-critical);
+    box-shadow: 0 0 0 0 rgba(196, 52, 31, 0.6);
+    animation: pulse 2.4s infinite;
+  }
+
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(196, 52, 31, 0.5); }
+    70% { box-shadow: 0 0 0 8px rgba(196, 52, 31, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(196, 52, 31, 0); }
+  }
+
+  .brand-name {
+    font-weight: 700;
+    font-size: 15px;
+    letter-spacing: 0.02em;
+  }
+
+  .brand-name span { color: var(--text-dim); font-weight: 400; }
+
+  .status-line {
+    font-family: var(--font-data);
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 0.03em;
+  }
+
+  .status-line .dot { color: var(--risk-low); }
+
+  /* ---------- SIDEBAR ---------- */
+  aside {
+    background: var(--bg-panel);
+    border-right: 1px solid var(--line);
+    overflow-y: auto;
+    padding: 16px;
+  }
+
+  .panel-label {
+    font-family: var(--font-data);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    margin-bottom: 10px;
+    padding-left: 2px;
+  }
+
+  .summary-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+
+  .summary-card {
+    background: var(--bg-panel-raised);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 10px 12px;
+  }
+
+  .summary-card .num {
+    font-family: var(--font-data);
+    font-size: 22px;
+    font-weight: 600;
+    line-height: 1;
+  }
+
+  .summary-card .label {
+    font-size: 10px;
+    color: var(--text-dim);
+    margin-top: 4px;
+  }
+
+  .zone-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .zone-row {
+    display: grid;
+    grid-template-columns: 8px 1fr auto;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 10px;
+    background: var(--bg-panel-raised);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: border-color 0.15s ease;
+  }
+
+  .zone-row:hover { border-color: var(--text-faint); }
+
+  .zone-row .indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+
+  .zone-row .zone-name {
+    font-size: 13px;
+  }
+
+  .zone-row .zone-meta {
+    font-family: var(--font-data);
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  .zone-row .score-num {
+    font-family: var(--font-data);
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  /* ---------- MAP ---------- */
+  #map {
+    width: 100%;
+    height: 100%;
+    background: var(--bg-void);
+  }
+
+  .legend {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    background: var(--bg-panel);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 12px 14px;
+    font-family: var(--font-data);
+    font-size: 11px;
+    z-index: 1000;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+  }
+
+  .legend-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 6px;
+  }
+
+  .legend-row:first-child { margin-top: 0; }
+
+  .legend-swatch {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+  }
+
+  .legend-title {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-faint);
+    margin-bottom: 8px;
+  }
+
+  /* Leaflet popup override */
+  .leaflet-popup-content-wrapper {
+    background: var(--bg-panel-raised);
+    color: var(--text-primary);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+  }
+  .leaflet-popup-tip { background: var(--bg-panel-raised); }
+  .leaflet-popup-content { font-family: var(--font-display); margin: 12px 14px; }
+  .popup-title { font-weight: 700; font-size: 14px; margin-bottom: 6px; }
+  .popup-score { font-family: var(--font-data); font-size: 22px; font-weight: 700; margin: 4px 0; }
+  .popup-detail { font-family: var(--font-data); font-size: 11px; color: var(--text-dim); line-height: 1.6; }
+
+  .empty-state {
+    padding: 24px 12px;
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 12px;
+    line-height: 1.6;
+  }
+
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--line); border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header>
+    <div class="brand">
+      <div class="brand-mark"></div>
+      <div class="brand-name">ZJARRRADAR <span>/ monitorim live i rrezikut</span></div>
+    </div>
+    <div class="status-line" id="statusLine"><span class="dot">●</span> duke u lidhur...</div>
+  </header>
+
+  <aside>
+    <div class="panel-label">Përmbledhje kombëtare</div>
+    <div class="summary-grid">
+      <div class="summary-card">
+        <div class="num" id="criticalCount" style="color: var(--risk-critical)">—</div>
+        <div class="label">zona kritike</div>
+      </div>
+      <div class="summary-card">
+        <div class="num" id="activeFiresCount" style="color: var(--risk-high)">—</div>
+        <div class="label">zjarre aktive (24h)</div>
+      </div>
+    </div>
+
+    <div class="panel-label">Zonat (sipas rrezikut)</div>
+    <div class="zone-list" id="zoneList">
+      <div class="empty-state">Duke ngarkuar të dhënat...</div>
+    </div>
+  </aside>
+
+  <main style="position: relative;">
+    <div id="map"></div>
+    <div class="legend">
+      <div class="legend-title">Niveli i rrezikut</div>
+      <div class="legend-row"><div class="legend-swatch" style="background: var(--risk-low)"></div> I ulët</div>
+      <div class="legend-row"><div class="legend-swatch" style="background: var(--risk-moderate)"></div> Moderuar</div>
+      <div class="legend-row"><div class="legend-swatch" style="background: var(--risk-high)"></div> I lartë</div>
+      <div class="legend-row"><div class="legend-swatch" style="background: var(--risk-critical)"></div> Kritik</div>
+    </div>
+  </main>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+  const API_ENDPOINT = "/api/risk-map";
+  const POLL_INTERVAL_MS = 60000; // 60 sekonda — efekt "live" pa WebSocket
+
+  function colorForScore(score) {
+    if (score >= 70) return "var(--risk-critical)".trim();
+    if (score >= 45) return getComputedStyle(document.documentElement).getPropertyValue('--risk-high').trim();
+    if (score >= 20) return getComputedStyle(document.documentElement).getPropertyValue('--risk-moderate').trim();
+    return getComputedStyle(document.documentElement).getPropertyValue('--risk-low').trim();
+  }
+  function rawColor(score) {
+    if (score >= 70) return "#c4341f";
+    if (score >= 45) return "#d9701f";
+    if (score >= 20) return "#c9a227";
+    return "#3a8a5c";
+  }
+
+  // Harta bazë - errët, e qendërzuar në Shqipëri
+  const map = L.map('map', { zoomControl: true }).setView([41.15, 20.0], 7.4);
+
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '© OpenStreetMap, © CARTO',
+    maxZoom: 18,
+  }).addTo(map);
+
+  let markers = {};
+
+  function renderZoneList(zones) {
+    const sorted = [...zones].sort((a, b) => b.score - a.score);
+    const listEl = document.getElementById('zoneList');
+
+    if (sorted.length === 0) {
+      listEl.innerHTML = '<div class="empty-state">Asnjë zonë akoma. Sistemi pret ciklin e parë të përditësimit (GitHub Actions xhiron çdo orë).</div>';
+      return;
+    }
+
+    listEl.innerHTML = sorted.map(z => `
+      <div class="zone-row" data-zone="${z.zone_id}">
+        <div class="indicator" style="background: ${rawColor(z.score)}"></div>
+        <div>
+          <div class="zone-name">${z.name}</div>
+          <div class="zone-meta">${z.weather?.temperature ?? '–'}°C · lagështi ${z.weather?.humidity ?? '–'}%</div>
+        </div>
+        <div class="score-num" style="color: ${rawColor(z.score)}">${z.score}</div>
+      </div>
+    `).join('');
+
+    listEl.querySelectorAll('.zone-row').forEach(row => {
+      row.addEventListener('click', () => {
+        const zoneId = row.dataset.zone;
+        const marker = markers[zoneId];
+        if (marker) {
+          map.flyTo(marker.getLatLng(), 9, { duration: 0.6 });
+          marker.openPopup();
+        }
+      });
+    });
+  }
+
+  function renderMap(zones) {
+    Object.values(markers).forEach(m => map.removeLayer(m));
+    markers = {};
+
+    zones.forEach(z => {
+      const color = rawColor(z.score);
+      const radius = 12 + (z.score / 100) * 22;
+
+      const circle = L.circleMarker([z.lat, z.lon], {
+        radius: radius,
+        fillColor: color,
+        color: color,
+        weight: 1.5,
+        opacity: 0.9,
+        fillOpacity: 0.35,
+      }).addTo(map);
+
+      const grazingNote = z.has_grazing
+        ? `<br/>⚠ Zonë kullote — rrezik djegie e qëllimshme nëse bari është i thatë`
+        : '';
+
+      circle.bindPopup(`
+        <div class="popup-title">${z.name}</div>
+        <div class="popup-score" style="color: ${color}">${z.score} / 100 — ${z.label}</div>
+        <div class="popup-detail">
+          Temperatura: ${z.weather?.temperature ?? '–'}°C<br/>
+          Lagështia: ${z.weather?.humidity ?? '–'}%<br/>
+          Era: ${z.weather?.wind_speed ?? '–'} km/h<br/>
+          Ditë pa shi: ${z.weather?.dry_days ?? '–'}<br/>
+          Zjarre aktive pranë: ${z.nearby_active_fires ?? 0}
+          ${grazingNote}
+        </div>
+      `);
+
+      markers[z.zone_id] = circle;
+    });
+  }
+
+  function updateSummary(data) {
+    const zones = data.zones || [];
+    const criticalCount = zones.filter(z => z.score >= 70).length;
+    document.getElementById('criticalCount').textContent = criticalCount;
+    document.getElementById('activeFiresCount').textContent = data.total_active_fires ?? 0;
+  }
+
+  function updateStatusLine(updatedAt, isError) {
+    const el = document.getElementById('statusLine');
+    if (isError) {
+      el.innerHTML = '<span class="dot" style="color: var(--risk-critical)">●</span> gabim në lidhje — duke riprovuar';
+      return;
+    }
+    const time = updatedAt ? new Date(updatedAt).toLocaleTimeString('sq-AL') : '—';
+    el.innerHTML = `<span class="dot">●</span> live · përditësuar ${time}`;
+  }
+
+  async function fetchAndRender() {
+    try {
+      const res = await fetch(API_ENDPOINT);
+      const data = await res.json();
+      const zones = data.zones || [];
+
+      renderZoneList(zones);
+      renderMap(zones);
+      updateSummary(data);
+      updateStatusLine(data.updated_at, false);
+    } catch (err) {
+      console.error('Gabim duke marrë të dhënat:', err);
+      updateStatusLine(null, true);
+    }
+  }
+
+  fetchAndRender();
+  setInterval(fetchAndRender, POLL_INTERVAL_MS);
+</script>
+
+</body>
+</html>
