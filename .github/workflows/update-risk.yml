@@ -1,0 +1,32 @@
+name: Përditësim Live i Rrezikut të Zjarreve
+
+on:
+  schedule:
+    # Çdo orë, në minutën 0 (UTC). Shqipëria është UTC+1/+2, por
+    # për qëllime moti orari UTC mjafton plotësisht.
+    - cron: "0 * * * *"
+  workflow_dispatch: {}  # lejon xhirim manual nga GitHub UI për testim
+
+jobs:
+  update-risk-scores:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalo varësitë
+        run: pip install requests
+
+      - name: Xhiro përditësimin e rrezikut
+        env:
+          UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
+          UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
+          NASA_FIRMS_MAP_KEY: ${{ secrets.NASA_FIRMS_MAP_KEY }}
+        run: python scripts/update_risk.py
